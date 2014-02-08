@@ -74,18 +74,71 @@ def dxyzObserverTarget(b,al,ar,ah):
     return (dist*cos(a(b,al,ar,dist)), dy, dy*tan(ah))
 
 
-def px2Angle(rg,f,px,yDir=False):
-    """ based on pixel range (rg) and field of view angle f, return
-    the angle corresponding to the px value px.
-    the angle is positive to the right and up, i.e. assumes that (0,0)
-    is in lower left corner of field of view.
-    Angle is calculated for use as al,ar,ah above!
-    """
-    D =rg/(2.0*tan(f/2.0))
-    if yDir:
-         return atan2((px-rg/2.0), D)
-    else:
-         return pi/2.0- atan2((px-rg/2.0), D)
+PixieHorizontalField = radians(75.0)
+PixieVerticalField = radians(47.0)
+PixieHorizontalPixelRange = 640
+PixieVerticalPixelRange = 400
 
+class Pixie:
+    def __init__(self,offset):
+        self.fx = PixieHorizontalField
+        self.fy = PixieVerticalField
+        self.rx = PixieHorizontalPixelRange
+        self.ry = PixieVerticalPixelRange
+        self.centerX = self.rx/2.0
+        self.centerY = self.ry/2.0
+        self.PDx = (self.centerX)/tan(self.fx/2.0)
+        self.PDy = (self.centerY)/tan(self.fy/2.0)
+        self.Xoffset = offset
 
-    
+    def pixel2Angle(self,px,py):
+        """ return a pair (a,ah)
+        """
+        return (atan((px-self.centerX)/self.PDx),
+                atan((py-self.centerY)/self.PDy))
+
+    def test(self):
+        #PixieHorizontalPixelRange
+        #PixieVerticalPixelRange 
+        #PixieHorizontalField
+        #PixieVerticalField 
+        epsilon = 0.001
+        top = PixieVerticalPixelRange 
+        topa = PixieVerticalField/2.0
+        right = PixieHorizontalPixelRange 
+        righta = PixieHorizontalField/2.0
+        left =  bottom = 0
+        lefta = -PixieHorizontalField/2.0
+        bottoma = -PixieVerticalField/2.0
+        centerH = PixieHorizontalPixelRange/2.0 
+        centerV = PixieVerticalPixelRange/2.0
+        centera = 0.0
+        positionsResults = [
+            ((left,bottom),(lefta,bottoma)),     #bottomLeft 
+            ((centerH,bottom),(centera,bottoma)), #bottomCenter 
+            ((right,bottom),(righta,bottoma)),    #bottomRight 
+            ((right,centerV),(righta,centera)),   #centerRight 
+            ((centerH,centerV),(centera,centera)), #center
+            ((right,centerV),(righta,centera)),   #centerLeft 
+            ((left,top),(lefta,topa)),        #topLeft
+            ((centerH,top),(centera,topa)),      #topCenter
+            ((right,top),(righta,topa))       #topRight
+            ]
+        def testForEquality(x,y):
+            return (abs(x[0]-y[0]) < epsilon) and (abs(x[1]-y[1]) < epsilon) 
+        return    all(testForEquality(calc,correct) for (calc,correct) in
+                      map(lambda (pr,tr): (self.pixel2Angle(pr[0],pr[1]),tr),
+                          positionsResults))
+
+    # now we need a function that takes the oberserver(x,y,z)
+    # and returns the pixel values for each pixie Left and Right (px,py)
+    def targetObserverXYZ2PixiePxPy(self,target,observer):
+        """ return the pixel pair (px,py)
+        """
+        dy = target[1]-observer[1]
+        px = ((target[0]-(observer[0] + self.Xoffset))*self.PDx/dy) + \
+            self.centerX
+        py  = (((target[2]-observer[2])*self.PDy)/dy) + self.centerY
+        return (int(round(px,0)),int(round(py,0)))
+
+# still need to test, but seems good to go!!
