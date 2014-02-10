@@ -6,36 +6,63 @@ Some algorithm work for vision and so on
 
 from math import *
 
+def testForEquality(x,y, epsilon = 0.001):
+    return (abs(x-y) < epsilon) 
+
+
 def runTests():
     """
     The test cases:
     if the observer is at (0,0,0):
     * if the targetY <= ObserverY, FAIL
     * if the targetX or targetZ are outside the Observer field of view, FAIL
-    * computed dy = O(y) - T(y), if not FAIL
-    * computed dx = O(x) - T(x), if not FAIL
-    * computed dz = 0(z) - T(z), if not FAIL
+    * computed dy = Obs(y) - Tar(y), if not FAIL
+    * computed dx = Obs(x) - Tar(x), if not FAIL
+    * computed dz = Obs(z) - Tar(z), if not FAIL
     Test Values:
     * Obs = (0,0,0)
     """
-    b = .20  # pixies are separated by 20cm
-    Targets= [(-16,-26,-5),  # targets are +/-16m off x-axis
-              (+16,-26,-5), # 26m away on y-axis
-              (-16,-26,5),   # +/-5m off z-axis
-              (+16,-26,5)]
-
+    B = .20  # pixies are separated by 20cm
+    L = -6
+    C =  0
+    R =  6
+    U =  4
+    D = -4
+    Y = 10
+    Obs = (0,0,0)
+    UL = (L,Y,U)
+    UC = (C,Y,U)
+    UR = (R,Y,U)
+    CL = (L,Y,C)
+    CC = (C,Y,C)
+    CR = (R,Y,C)
+    DL = (L,Y,D)
+    DC = (C,Y,D)
+    DR = (R,Y,D)
+    def dxyz((x,y,z)):
+        return (-x,-y,-z)
+    def alarah(b,(x,y,z)):
+        minus = atan2(abs(x)-abs(b/2.0),abs(y))
+        plus  = atan2(abs(x)+abs(b/2.0),abs(y))
+        ninety = pi/2.0
+        if x<0:
+            return (ninety+minus,ninety+plus,atan2(z,abs(y)))
+        else:
+            return (ninety-plus,ninety-minus,atan2(z,abs(y)))
+    Targets = [UL,UC,UR,CL,CC,CR,DL,DC,DR]
     testNumber = 0
     epsilon = 0.001  # for equality
+    print "target: ","Computed", "=", "Theoretical"
     for Target in Targets:
-        al=atan2(-Target[1],-Target[0]+b/2.0)
-        ar=atan2(-Target[1],-Target[0]-b/2.0)
-        ah=atan2(-Target[2],-Target[1])
-        res= dxyzObserverTarget(b,al,ar,ah)
-        print [round(r,2) for r in res]
-        if all( abs(x-y)<epsilon for x,y in \
-                    map(lambda a,b:(a,b),
-                        Target,
-                        res)):
+        (al,ar,ah) = alarah(B,Target)
+        res= dXYZ(B,al,ar,ah)
+        print [r for r in Target], ":",\
+            [round(r,2) for r in res], "=", \
+            [round(r,2) for r in dxyz(Target)]
+        if all(testForEquality(x,y) for x,y in \
+                   map(lambda a,b:(a,b),
+                       dxyz(Target),
+                       res)):
             testNumber +=1
         else:
             print 'Test failed on: %s'%repr(Target)
@@ -45,61 +72,56 @@ def runTests():
 
 def doAssert(al,ar,ah=None):
     assert(all(((al>0.0),(ar>0.0),(pi>al),(pi>ar),
-                any(((ah == None),(abs(ah) <= pi))))))
+                any(((ah == None),(abs(ah) <= pi/2.0))))))
     
 def at(al,ar):
     return ar-al
 
 def L(b,al,ar):
-    return b*sin(pi-ar)/sin(at(al,ar))
+    return b*sin(ar)/sin(at(al,ar))
 
 def R(b,al,ar):
     return b*sin(al)/sin(at(al,ar))
 
 def d(b,al,ar):
     l = L(b,al,ar)
-    return sqrt(pow(l,2) + \
-                    pow((b/2.0),2) - \
-                    l*b*cos(al))
+    return sqrt(pow(l,2) + 
+                pow((b/2.0),2) - 
+                l*b*cos(al))
 
-def a(b,al,ar,dist=None):
+def apPrime(b,al,ar,dist=None):
     if not dist:
         dist = d(b,al,ar)
-    print degrees(al),degrees(ar)
+    """print degrees(al),degrees(ar)
     print dist
     print R(b,al,ar)
     print sin(pi-ar)
-    res = asin(R(b,al,ar)*sin(pi-ar)/dist)
-    if ar>al>pi/2.0:
-        res = pi -res
-    return res
-
-def dxyzObserverTarget(b,al,ar,ah):
-    """ calculed such that the result is positve if the target is at 
-    an x or y or z value less than the observer's values
-    dz is calculated such that if the angle ah is positive then the distance
-    in Z is positive,  ah is positive when observer is below target, ah is zero
-    when observer is level with target, ah is negative when observer is above
-    target.
-    note that dy is always positive because of the assertions
     """
-    doAssert(al,ar,ah)
-    dist = d(b,al,ar)
-    dy = -dist*sin(a(b,al,ar,dist))
-    dx = abs(dist*cos(a(b,al,ar,dist)))
+    a = asin(R(b,al,ar)*sin(ar)/dist)
+    ap = (pi/2.0) - a
     if (al < pi-ar):
-        dx=-dx
-    dz = dy*tan(ah)
-    
-    return (dx, dy, dz)
+        apPrim = pi + abs(ap)
+    else:
+        apPrim = pi - abs(ap)
+    return apPrim
 
+def dXYZ(b,al,ar,ah):
+    dist =  d(b,al,ar)
+    apPrim = apPrime(b,al,ar,dist)
+    dy = dist*cos(apPrim)
+    return (dist*sin(apPrim),
+            dy,
+            dy*tan(ah))
+            
 
 PixieHorizontalField = radians(75.0)
 PixieVerticalField = radians(47.0)
 PixieHorizontalPixelRange = 640
 PixieVerticalPixelRange = 400
-
 class Pixie:
+    """ we assume that (0,0) in the Pixie perspective is at lower left of 
+    Pixie's view port
+    """
     def __init__(self,offset):
         self.fx = PixieHorizontalField
         self.fy = PixieVerticalField
@@ -111,62 +133,74 @@ class Pixie:
         self.PDy = (self.centerY)/tan(self.fy/2.0)
         self.Xoffset = offset
 
-    def pixel2Anglep(self,(px,py)):
-        return self.pixel2Angle(px,py)
+    def nPx(self,px):
+        return px - self.centerX
+    def nPy(self,py):
+        return py - self.centerY
 
-
-    def pixel2Angle(self,px,py):
+    def pixel2Angles(self,px,py):
         """ return a pair (a,ah)
         """
-        return (atan((px-self.centerX)/self.PDx),
-                atan((py-self.centerY)/self.PDy))
-
+        assert(px>=0 and px <=self.rx)
+        assert(py>=0 and py <=self.ry)
+        return ((pi/2.0) - atan2(self.nPx(px),self.PDx),
+                atan2(self.nPy(py),self.PDy))
+    
     def test(self):
         #PixieHorizontalPixelRange
         #PixieVerticalPixelRange 
         #PixieHorizontalField
         #PixieVerticalField 
-        epsilon = 0.001
         top = PixieVerticalPixelRange 
         topa = PixieVerticalField/2.0
         right = PixieHorizontalPixelRange 
-        righta = PixieHorizontalField/2.0
+        righta = pi/2.0 - PixieHorizontalField/2.0
         left =  bottom = 0
-        lefta = -PixieHorizontalField/2.0
+        lefta = pi/2.0 + PixieHorizontalField/2.0
         bottoma = -PixieVerticalField/2.0
         centerH = PixieHorizontalPixelRange/2.0 
         centerV = PixieVerticalPixelRange/2.0
-        centera = 0.0
+        centeraV = 0.0
+        centeraH = pi/2.0
         positionsResults = [
             ((left,bottom),(lefta,bottoma)),     #bottomLeft 
-            ((centerH,bottom),(centera,bottoma)), #bottomCenter 
+            ((centerH,bottom),(centeraH,bottoma)), #bottomCenter 
             ((right,bottom),(righta,bottoma)),    #bottomRight 
-            ((right,centerV),(righta,centera)),   #centerRight 
-            ((centerH,centerV),(centera,centera)), #center
-            ((right,centerV),(righta,centera)),   #centerLeft 
+            ((right,centerV),(righta,centeraV)),   #centerRight 
+            ((centerH,centerV),(centeraH,centeraV)), #center
+            ((right,centerV),(righta,centeraV)),   #centerLeft 
             ((left,top),(lefta,topa)),        #topLeft
-            ((centerH,top),(centera,topa)),      #topCenter
+            ((centerH,top),(centeraH,topa)),      #topCenter
             ((right,top),(righta,topa))       #topRight
             ]
-        def testForEquality(x,y):
-            return (abs(x[0]-y[0]) < epsilon) and (abs(x[1]-y[1]) < epsilon) 
-        return    all(testForEquality(calc,correct) for (calc,correct) in
-                      map(lambda (pr,tr): (self.pixel2Angle(pr[0],pr[1]),tr),
-                          positionsResults))
+
+        return    all((testForEquality(calc[0],correct[0]) and \
+                           testForEquality(calc[1],correct[1])) \
+                          for (calc,correct) in \
+                          map(lambda (pr,tr): 
+                              (self.pixel2Angles(pr[0],pr[1]),tr),
+                              positionsResults))
 
     # now we need a function that takes the oberserver(x,y,z)
     # and returns the pixel values for each pixie Left and Right (px,py)
-    def observerTargetXYZ2PixiePxPy(self,target,observer):
-        """ return the pixel pair (px,py)
+    def simTargPxPy(self,targ,obs):
+        """ return the pixel pair (px,py) for the Pixie
+        for the target from the observer coords.
         """
-        dy = observer[1]- target[1]
-        px = (((observer[0] + self.Xoffset-target[0]))*self.PDx/dy) + \
-            self.centerX
-        py  = (((observer[2]-target[2])*self.PDy)/dy) + self.centerY
-        return (int(round(px,0)),int(round(py,0)))
+        dxp = targ[0] - (obs[0] +self.Xoffset)
+        dyp= targ[1] - obs[1]
+        dzp = targ[2] - obs[2]
+        px = self.PDx*dxp/dyp + self.centerX
+        py = self.PDy*dzp/dyp +  self.centerY
+        px = int(round(px,0))
+        py = int(round(py,0))
+        assert(px>=0 and px<=self.rx)
+        assert(py>=0 and py<=self.ry)
+        return (px,py)
 
-# still need to test, DOES NOT seem good to go!!
-# still an issue for the signs of dx, dy dz
+    def simTargAngles(self,targ,obs):
+        (px,py) = self.simTargPxPy(targ,obs)
+        return self.pixel2Angles(px,py)
 
 class SimDrone:
     def __init__(self,b = 0.2):
@@ -175,15 +209,11 @@ class SimDrone:
         self.pixieR = Pixie(self.B/2.0)
         self.position = (0.0,0.0,0.0)
 
+    def dXYZ(self,targ):
+        (al,ahL) = self.pixieL.simTargAngles(targ,self.position)
+        (ar,ahR) = self.pixieR.simTargAngles(targ,self.position)
 
-## still needs work...
-    def dxyz(self,targetXYZ):
-        (al,ahL) = self.pixieL.pixel2Anglep(
-            self.pixieL.observerTargetXYZ2PixiePxPy(targetXYZ,
-                                                    self.position))
-        (ar,ahR) = self.pixieR.pixel2Anglep(
-            self.pixieR.observerTargetXYZ2PixiePxPy(targetXYZ,
-                                                    self.position))
-        print "al:%f ar:%f ahL:%f ahR:%f"%(al,ar,ahL, ahR)
-        return dxyzObserverTarget(self.B,((pi/2.0) -al),((pi/2.0)-ar),(ahL+ahR)/2.0)
+        #print "al:%f ar:%f ahL:%f ahR:%f"%(al,ar,ahL, ahR)
+        return dXYZ(self.B,al,ar,(ahL+ahR)/2.0)
     
+# this needs to be tested... seems very poor in Y-axis precision..
